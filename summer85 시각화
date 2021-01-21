@@ -1,0 +1,81 @@
+
+f <- file("d:/Rtest/summer.txt",encoding="euc-kr")
+fl <- readLines(f)                          
+close(f)                                 
+
+데이터 전처리
+
+{
+  fl <- gsub("그리고","",fl); fl <- gsub("너무","",fl); fl <- gsub("정말","",fl);
+  fl <- gsub("진짜","",fl); fl <- gsub("그때","",fl); fl <- gsub("있는","",fl); fl <- gsub("을","",fl);fl <- gsub("를","",fl);
+  fl <- gsub("아는","",fl);fl <- gsub("하는","",fl);fl <- gsub("특히","",fl);fl <- gsub("역시","",fl);
+  fl <- gsub("","",fl); fl <- gsub("내가","",fl); fl <- gsub("입니다","",fl); fl <- gsub("않았다면","",fl); fl <- gsub("그냥","",fl); 
+  fl <- gsub("다시","",fl); fl <- gsub("만약에","",fl); fl <- gsub("그런","",fl); fl <- gsub("이런","",fl); fl <- gsub("영화","",fl);
+  fl <- gsub("보고","",fl); fl <- gsub("같은","",fl); fl <- gsub("조금","",fl);
+}
+
+fl <- str_replace_all(fl, "[[:punct:]]", "") %>%
+  str_replace_all("아픈", "얼얼하게") %>%
+  str_replace_all("첫설렘", "첫사랑") %>%
+  str_replace_all("첫사랑의", "첫사랑") %>%
+  str_replace_all("청춘[의|을]", "청춘") %>%
+  str_replace_all("[0-9]+", " ") %>%
+  str_replace_all("영화[는|가|에]", "영화")
+
+  
+write.table(fl,"preprocessing.txt")
+
+전처리 완료된 파일 업로드
+f_1 <- file("preprocessing.txt", encoding="euc-kr")
+fl_1 <- readLines(f_1) 
+close(f_1)
+
+fl_1
+
+형태소 분석
+
+
+ko.words = function(doc){
+  doc = as.character(doc)
+  doc2<-SimplePos22(doc) 
+  doc3<-str_match(doc2,
+  doc4<-doc3[,2] 
+  doc4[!is.na(doc4)] 
+}
+
+options(mc.cores = 1) 
+
+cps = Corpus(VectorSource(fl_1)) 
+
+
+tdm <- TermDocumentMatrix(cps, control = list(tokenize = ko.words,
+                                              removePunctuation=T,removeNumbers=T, 
+                                              wordLengths=c(4,Inf))) 
+result <- as.matrix(tdm) 
+
+
+핵심 키워드(최빈어) 찾기
+
+word.count = rowSums(result)
+word.order = order(word.count, decreasing = T)
+freq.word = result[word.order[1:20],]
+freq.word[,1]
+
+freqency <- data.frame(freq.word)
+write.csv(freqency,"summer.csv") 
+
+공출현 행렬로 만들기
+
+co.matrix = freq.word %*% t(freq.word) 
+co.matrix
+
+
+
+qg<-qgraph(co.matrix,labels=rownames(co.matrix),
+           diag=F, layout='spring',
+           label.cex= 2.0, 
+           edge.color='blue', 
+           vsize=log(diag(co.matrix))*1.5) 
+
+
+plot(qg) 
