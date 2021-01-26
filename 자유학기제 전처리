@@ -1,0 +1,106 @@
+install.packages(c('stringr','stringi','tm','sna','xml2','dplyr','qgraph'))
+
+library(KoNLP)
+library(stringr); library(stringi);library(tm); library(sna);library(xml2);library(qgraph); library(dplyr)
+
+useNIADic()
+
+#### 지난시간 수집 데이터 업로딩
+
+f <- file("teacher.txt", encoding="UTF-8") 
+fl <- readLines(f) 
+close(f)
+
+
+#불용어 처리
+{
+  fl <- gsub("그러나","",fl); fl <- gsub("의","",fl); fl <- gsub("첫째","",fl); fl <- gsub("있었다","",fl);
+  fl <- gsub("둘째","",fl); fl <- gsub("셋째","",fl); fl <- gsub("이다","",fl);fl <- gsub("를","",fl);
+  fl <- gsub("필요하다","",fl);fl <- gsub("발생한다","",fl);fl <- gsub("할 수 있다","",fl);fl <- gsub("역시","",fl);
+  fl <- gsub("만일","",fl); fl <- gsub("내가","",fl); fl <- gsub("입니다","",fl); fl <- gsub("않았다면","",fl); fl <- gsub("이러한","",fl); 
+  fl <- gsub("본교","",fl); fl <- gsub("만약에","",fl); fl <- gsub("이에","",fl); fl <- gsub("이러한","",fl); fl <- gsub("있다고","",fl);
+  fl <- gsub("있다","",fl); fl <- gsub("같은","",fl); fl <- gsub("인식하였다","",fl); fl <- gsub("초등학교","",fl); fl <- gsub("중학교","",fl);
+  fl <- gsub("한다","",fl); fl <- gsub("대한","",fl); fl <- gsub("있는","",fl); fl <- gsub("통해","",fl); fl <- gsub("위해","",fl); fl <- gsub("위한","",fl);
+  fl <- gsub("있도록","",fl);fl <- gsub("하는","",fl);fl <- gsub("에서","",fl);fl <- gsub("통한","",fl);fl <- gsub("다음과","",fl);
+  fl <- gsub("으로","",fl); fl <- gsub("되었다","",fl); fl <- gsub("위한","",fl); fl <- gsub("초등학교","",fl); fl <- gsub("중학교","",fl); fl <- gsub("고등학교","",fl);
+  fl <- gsub("에는","",fl); fl <- gsub("대해서","",fl);
+}
+
+
+#비슷한 단어 처리
+fl <- str_replace_all(fl, "[[:punct:]]", "") %>%
+  str_replace_all("학생[들｜은]", "학생") %>%
+  str_replace_all("발달[을｜에｜이]", "발달") %>%
+  str_replace_all("학업 성취도]", "학업성취") %>%
+  str_replace_all("기말고사", "평가") %>%
+  str_replace_all("영어", "영어수업") %>%
+  str_replace_all("중학생[와｜의｜들]", "중학생") %>%
+  str_replace_all("자율과정", "자율성") %>%
+  str_replace_all("자유학년제", "자유학기제") %>%
+  str_replace_all("체험활동", "체험") %>%
+  str_replace_all("영어교육", "영어수업") %>%
+  str_replace_all("교과수업", "수업") %>%
+  str_replace_all("성취감", "성취") %>%
+  str_replace_all("만족도", "만족감") %>%
+  str_replace_all("운영", "수업") %>%
+  str_replace_all("학교생활을", "학교생활") %>%
+  str_replace_all("학교", "학교생활") %>%
+  str_replace_all("환경에", "환경") %>%
+  str_replace_all("총괄평가", "평가") %>%
+  str_replace_all("진로수업", "진로") %>%
+  str_replace_all("꿈과", "꿈")
+
+write.table(fl,"teaprocessing.txt")
+
+###전처리 완료된 파일 업로드
+f_1 <- file("preprocessing.txt", encoding="UTF-8")
+fl_1 <- readLines(f_1) 
+close(f_1) 
+
+
+#형태소 분석을 위한 ko.words 라는 이름의 함수를 정
+
+ko.words = function(doc){
+  doc = as.character(doc) 
+  doc2<-SimplePos22(doc)
+  doc3<-str_match(doc2,"[가-힣]+/NC" ) 
+  doc4[!is.na(doc4)] 
+}
+
+options(mc.cores = 1) 
+cps = Corpus(VectorSource(fl_1))
+
+#토큰화, ko.words 사용
+
+tdm <- TermDocumentMatrix(cps, control = list(tokenize = ko.words, 
+                                              removePunctuation=T,removeNumbers=T, 
+                                              wordLengths=c(4,Inf)))
+
+result <- as.matrix(tdm) 
+
+#핵심 키워드(최빈어) 찾기
+#상위빈도 15개 추출
+
+word.count = rowSums(result)
+word.order = order(word.count, decreasing = T)
+freq.word = result[word.order[1:20],]
+freq.word[,1]
+
+freqency <- data.frame(freq.word)
+write.csv(freqency,"teacher.csv") 
+
+#전치행렬로 바꾼 다음에 곱셈을 통해 공출현 행렬
+co.matrix = freq.word %*% t(freq.word)
+co.matrix
+
+####공출현 행렬을 그래프로 그리기
+install.packages("qgraph")
+library(qgraph)
+
+qg<-qgraph(co.matrix,labels=rownames(co.matrix), 
+           diag=F, layout='spring', 
+           label.cex= 4.0, 
+           edge.color='green', 
+           vsize=log(diag(co.matrix))*1.5) 
+
+qplot(qg) 
